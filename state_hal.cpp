@@ -11,7 +11,7 @@
 #define SP_THRESHOLD 750
 
 #define TEMP_PIN A3
-#define TEMP_BASE 1000L
+#define TEMP_BASE 100L
 #define TEMP_MUL  107L
 #define TEMP_ADD  730L
 

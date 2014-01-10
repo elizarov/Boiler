@@ -9,7 +9,7 @@
 //------- ALL TIME DEFS ------
 
 #define INITIAL_DUMP_INTERVAL 2000L  // 2 sec
-#define PERIODIC_DUMP_INTERVAL 30000L // 30 sec
+#define PERIODIC_DUMP_INTERVAL 60000L // 1 min
 #define PERIODIC_DUMP_SKEW 5000L      // 5 sec 
 
 #define RESTORE_STATE_INTERVAL   60000L   // restore after 1 min
@@ -22,7 +22,7 @@
 
 boolean firstDump = true; 
 Timeout dump(INITIAL_DUMP_INTERVAL);
-char dumpLine[] = "[B: s0 t00 u00000000](a0000 b0000 c0000 d0000)* ";
+char dumpLine[] = "[B:0 t00.0;u00000000](a0000b0000c0000d0000)* ";
 
 byte indexOf(byte start, char c) {
   for (byte i = start; dumpLine[i] != 0; i++)
@@ -40,11 +40,11 @@ byte indexOf(byte start, char c) {
 
 byte highlightPos = indexOf(0, HIGHLIGHT_CHAR);
 
-POSITIONS('s', ' ', sPos, sSize)
-POSITIONS('t', ' ', tPos, tSize)
-POSITIONS('a', ' ', aPos, aSize)
-POSITIONS('b', ' ', bPos, bSize)
-POSITIONS('c', ' ', cPos, cSize)
+POSITIONS(':', ' ', sPos, sSize)
+POSITIONS('t', ';', tPos, tSize)
+POSITIONS('a', 'b', aPos, aSize)
+POSITIONS('b', 'c', bPos, bSize)
+POSITIONS('c', 'd', cPos, cSize)
 POSITIONS('d', ')', dPos, dSize)
 POSITIONS('u', ']', uptimePos, uptimeSize)
 
@@ -65,7 +65,7 @@ inline void prepareDecimal(int x, int pos, byte size, byte fmt = 0) {
 
 void makeDump(char dumpType) {
   prepareDecimal(getState(), sPos, sSize);
-  prepareDecimal(getTemperature(), tPos, tSize);
+  prepareDecimal(getTemperature(), tPos, tSize, 1);
   
   // prepare values
   prepareDecimal(h0, aPos, aSize);
