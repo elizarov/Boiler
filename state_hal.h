@@ -11,7 +11,7 @@ enum State {
 };
 
 typedef fixnum16_1 temp_t;
-typedef fixnum8_1 voltage_t;
+typedef ufixnum8_1 voltage_t;
 
 extern int h0; // reported as a
 extern int h1; // reported as b

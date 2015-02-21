@@ -56,7 +56,7 @@ void startMeasure() {
 }
 
 void setupStateHal() {
-  memset(&vQueue, 0xff, sizeof(vQueue));
+  memset(&vQueue, 0xfe, sizeof(vQueue)); // 0xfe is valid, but higher that any other value
   startMeasure();
 }
 
