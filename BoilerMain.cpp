@@ -1,20 +1,23 @@
-#include "Timeout.h"
+#include <Timeout.h>
+#include <FixNum.h>
+#include <BlinkLed.h>
+
 #include "xprint.h"
-#include "fmt_util.h"
-#include "blink_led.h"
 #include "parse.h"
 #include "state_hal.h"
 #include "Config.h"
 
+BlinkLed blinkLed(13);
+
 //------- ALL TIME DEFS ------
 
-#define INITIAL_DUMP_INTERVAL 2000L  // 2 sec
-#define PERIODIC_DUMP_INTERVAL 60000L // 1 min
-#define PERIODIC_DUMP_SKEW 5000L      // 5 sec 
+const long INITIAL_DUMP_INTERVAL = 2 * Timeout::SECOND;
+const long PERIODIC_DUMP_INTERVAL = Timeout::MINUTE;
+const long PERIODIC_DUMP_SKEW = 5 * Timeout::SECOND;
 
-#define RESTORE_STATE_INTERVAL   60000L   // restore after 1 min
-#define RESTORE_TEMP_LIMIT       60       // restore only below 60 degrees C
-#define RESTORE_RECHECK_INTERVAL 10000L   // recheck every 10 sec if above 60
+const long RESTORE_STATE_INTERVAL = Timeout::MINUTE;        // restore after 1 min
+const long RESTORE_RECHECK_INTERVAL = 10 * Timeout::SECOND; // recheck every 10 sec if above 60
+const int RESTORE_TEMP_LIMIT = 60;                          // restore only below 60 degrees C
 
 //------- DUMP STATE -------
 
@@ -22,7 +25,7 @@
 
 boolean firstDump = true; 
 Timeout dump(INITIAL_DUMP_INTERVAL);
-char dumpLine[] = "[B:0 t00.0;u00000000](a0000b0000c0000d0000)* ";
+char dumpLine[] = "[B:0 t00.0;u00000000](c0v0.0a0000b0000d0000)* ";
 
 byte indexOf(byte start, char c) {
   for (byte i = start; dumpLine[i] != 0; i++)
@@ -42,19 +45,22 @@ byte highlightPos = indexOf(0, HIGHLIGHT_CHAR);
 
 POSITIONS(':', ' ', sPos, sSize)
 POSITIONS('t', ';', tPos, tSize)
+POSITIONS('c', 'v', cPos, cSize)
+POSITIONS('v', 'a', vPos, vSize)
 POSITIONS('a', 'b', aPos, aSize)
-POSITIONS('b', 'c', bPos, bSize)
-POSITIONS('c', 'd', cPos, cSize)
+POSITIONS('b', 'd', bPos, bSize)
 POSITIONS('d', ')', dPos, dSize)
 POSITIONS('u', ']', uptimePos, uptimeSize)
-
-#define DAY_LENGTH_MS (24 * 60 * 60000L)
 
 long daystart = 0;
 int updays = 0;
 
-inline void prepareDecimal(int x, int pos, byte size, byte fmt = 0) {
+inline void prepareDecimal(int x, int pos, byte size, fmt_t fmt = FMT_NONE) {
   formatDecimal(x, &dumpLine[pos], size, fmt);
+}
+
+template<typename T, prec_t prec> inline void prepareDecimal(FixNum<T,prec> x, int pos, uint8_t size, fmt_t fmt = (fmt_t)prec) {
+  x.format(&dumpLine[pos], size, fmt);
 }
 
 #define DUMP_REGULAR               0
@@ -65,28 +71,29 @@ inline void prepareDecimal(int x, int pos, byte size, byte fmt = 0) {
 
 void makeDump(char dumpType) {
   prepareDecimal(getState(), sPos, sSize);
-  prepareDecimal(getTemperature(), tPos, tSize, 1);
+  prepareDecimal(getTemperature(), tPos, tSize);
   
-  // prepare values
+  // prepare other values
+  prepareDecimal(config.state.read(), cPos, cSize);
+  prepareDecimal(getMinVoltage(), vPos, vSize);
   prepareDecimal(h0, aPos, aSize);
   prepareDecimal(h1, bPos, bSize);
-  prepareDecimal(analogRead(A2), cPos, cSize);
-  prepareDecimal(analogRead(A3), dPos, dSize);
+  prepareDecimal(h3, dPos, dSize);
 
   // prepare uptime
   long time = millis();
-  while ((time - daystart) > DAY_LENGTH_MS) {
-    daystart += DAY_LENGTH_MS;
+  while ((time - daystart) > Timeout::DAY) {
+    daystart += Timeout::DAY;
     updays++;
   }
-  prepareDecimal(updays, uptimePos, uptimeSize - 6);
+  prepareDecimal(updays, uptimePos, uptimeSize - 6, FMT_ZERO);
   time -= daystart;
   time /= 1000; // convert seconds
-  prepareDecimal(time % 60, uptimePos + uptimeSize - 2, 2);
+  prepareDecimal(time % 60, uptimePos + uptimeSize - 2, 2, FMT_ZERO);
   time /= 60; // minutes
-  prepareDecimal(time % 60, uptimePos + uptimeSize - 4, 2);
+  prepareDecimal(time % 60, uptimePos + uptimeSize - 4, 2, FMT_ZERO);
   time /= 60; // hours
-  prepareDecimal((int) time, uptimePos + uptimeSize - 6, 2);
+  prepareDecimal((int) time, uptimePos + uptimeSize - 6, 2, FMT_ZERO);
 
   // print
   if (dumpType == DUMP_REGULAR) {
@@ -178,12 +185,13 @@ void checkState() {
 //------- SETUP & MAIN -------
 
 void setup() {
+  setupStateHal();
   setupPrint();
   waitPrintln("{B:Boiler started}*");
 }
 
 void loop() {
-  blinkLed(1000);
+  blinkLed.blink(1000);
   dumpState();
   executeCommand(parseCommand());
   checkState();

@@ -1,0 +1,17 @@
+aXXXX, bXXXX -- heaters (XXXX from 0 to 1023)
+
+27 deg = d0248
+35 deg = d0317
+40 deg = d0361
+50 deg = d0458
+55 deg = d0513
+62 deg = d0574
+68 deg = d0633
+70 deg = d0651
+74 deg = d0680
+75 deg = d0684 (exact moment of reaching temp)
+
+HEATING DP:   [B: aXXXX bXXXX c1023 dZZZZ u________] // double power
+HEATING SP:   [B: a0000 bXXXX c1023 d0249 u________] // single power
+TEMP REACHED: [B: a0008 b0008 c0120 d0680 u________] // keeping preset temp
+TURNED OFF:   [B: a0000 b0000 c1023 dZZZZ u________]
