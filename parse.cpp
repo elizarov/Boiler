@@ -21,6 +21,7 @@ inline char parseChar(char ch) {
   case PARSE_WCMD:
     switch (ch) {
     case CMD_ON_OFF: case CMD_POWER: case CMD_QUERY:
+    case CMD_OFF: case CMD_SP: case CMD_DP:
       parseState = PARSE_ANY;
       return ch; // command for external processing
     default:

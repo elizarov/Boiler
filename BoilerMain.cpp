@@ -25,7 +25,7 @@ const int RESTORE_TEMP_LIMIT = 60;                          // restore only belo
 
 boolean firstDump = true; 
 Timeout dump(INITIAL_DUMP_INTERVAL);
-char dumpLine[] = "[B:0 t00.0;u00000000](c0v0.0a0000b0000d0000)* ";
+char dumpLine[] = "[B:0 t00.0 c0;u00000000](v0.0a0000b0000d0000)* ";
 
 byte indexOf(byte start, char c) {
   for (byte i = start; dumpLine[i] != 0; i++)
@@ -44,8 +44,8 @@ byte indexOf(byte start, char c) {
 byte highlightPos = indexOf(0, HIGHLIGHT_CHAR);
 
 POSITIONS(':', ' ', sPos, sSize)
-POSITIONS('t', ';', tPos, tSize)
-POSITIONS('c', 'v', cPos, cSize)
+POSITIONS('t', ' ', tPos, tSize)
+POSITIONS('c', ';', cPos, cSize)
 POSITIONS('v', 'a', vPos, vSize)
 POSITIONS('a', 'b', aPos, aSize)
 POSITIONS('b', 'd', bPos, bSize)
@@ -67,6 +67,11 @@ template<typename T, prec_t prec> inline void prepareDecimal(FixNum<T,prec> x, i
 #define DUMP_FIRST                 HIGHLIGHT_CHAR
 #define DUMP_ON_OFF                'o'
 #define DUMP_POWER                 'p'
+#define DUMP_CHANGED               'c'
+#define DUMP_RESTORED              'r'
+#define DUMP_OFF                   '0'
+#define DUMP_SP                    '1'
+#define DUMP_DP                    '2'
 #define DUMP_QUERY                 '?'
 
 void makeDump(char dumpType) {
@@ -117,37 +122,75 @@ inline void dumpState() {
 
 //------- EXECUTE COMMAND -------
 
-void checkUpdateState();
+void checkUpdateState(bool force);
 
 const long CMD_TIMEOUT = 300; // how long to push button 
-const long CMD_SETTLE = 1000; // state updates every 0.5s, so after 1s it definitely settles
+const long CMD_SETTLE = 1200; // state updates ~3 times perscond, plus one there one change is skipped
+
+void executeHardwareCommand(char cmd) {
+  byte pin;
+  switch (cmd) {
+  case CMD_ON_OFF:
+    pin = 10;
+    break;
+  case CMD_POWER:
+    pin = 11;
+    break;
+  default:
+    return;
+  }  
+  pinMode(pin, OUTPUT);
+  delay(CMD_TIMEOUT);
+  pinMode(pin, INPUT);
+  delay(CMD_SETTLE); // let it settle onto new state
+  // forced update of configured state
+  checkUpdateState(true); // force update of configured stat
+}
+
+bool changeState(State to) {
+  State cur = getState();
+  if (cur == to)
+    return false;
+  if (cur == STATE_OFF || to == STATE_OFF)
+    executeHardwareCommand(CMD_ON_OFF);
+  cur = getState();
+  if (cur == STATE_SP && to == STATE_DP || cur == STATE_DP && to == STATE_SP)
+    executeHardwareCommand(CMD_POWER);
+  return true;  
+}
 
 void executeCommand(char cmd) {
-  byte pin = 0;
   char dumpType;
   switch (cmd) {
   case CMD_QUERY:
     dumpType = DUMP_QUERY;
     break;
   case CMD_ON_OFF:
-    pin = 10;
+    executeHardwareCommand(CMD_ON_OFF);
     dumpType = DUMP_ON_OFF;
     break;
   case CMD_POWER:
-    pin = 11;
+    executeHardwareCommand(CMD_POWER);
     dumpType = DUMP_POWER;
     break;
+  case CMD_OFF:
+    config.state = STATE_OFF;
+    changeState(STATE_OFF);
+    dumpType = DUMP_OFF;
+    break;    
+  case CMD_SP:
+    config.state = STATE_SP;
+    changeState(STATE_SP);
+    dumpType = DUMP_SP;
+    break;    
+  case CMD_DP:
+    config.state = STATE_DP;
+    changeState(STATE_DP);
+    dumpType = DUMP_DP;
+    break;    
   default:
     return;
   }  
-  if (pin != 0) {
-    pinMode(pin, OUTPUT);
-    delay(CMD_TIMEOUT);
-    pinMode(pin, INPUT);
-    delay(CMD_SETTLE); // let it settle onto new state
-  }
-  // forced update of configured state
-  checkUpdateState(); // force update of configured stat
   makeDump(dumpType);
 }
 
@@ -157,26 +200,29 @@ Timeout restoreStateTimeout(RESTORE_STATE_INTERVAL);
 State prevState = STATE_OFF;
 
 void restoreState() {
-  State cur = getState();
   State cfg = config.state.read();
-  if (cur != cfg && (cfg == STATE_SP || cfg == STATE_DP)) {
-    if (cur == STATE_OFF)
-      executeCommand(CMD_ON_OFF);
-    cur = getState();
-    if (cur == STATE_SP && cfg == STATE_DP || cur == STATE_DP && cfg == STATE_SP)
-      executeCommand(CMD_POWER);
-  }
+  if (cfg == STATE_SP || cfg == STATE_DP)
+    if (changeState(cfg))
+      makeDump(DUMP_RESTORED);
 }
 
-void checkUpdateState() {
+void checkUpdateState(bool force) {
   State state = getState();
-  if (state != prevState) {
-    prevState = state;
-    restoreStateTimeout.disable();
-    if (state != STATE_KEEP)
-      config.state = state;
-    else if (config.state.read() == STATE_OFF)
-      config.state = STATE_DP; // assume double power by default when in "keep"
+  if (state == prevState)
+    return;
+  prevState = state;
+  restoreStateTimeout.disable();
+  // special logic to figure out "keep" state (don't know if DP or SP)
+  if (state == STATE_KEEP) {
+    if (config.state.read() != STATE_OFF)
+      return; // some other state is configured -- don't touch it
+    state = STATE_DP; // assume double power by default when in "keep"
+  }  
+  if (state != config.state.read()) {
+    // new state if different from configured -- update configuration
+    config.state = state;
+    if (!force)
+      makeDump(DUMP_CHANGED);
   }
 }
 
@@ -201,6 +247,6 @@ void loop() {
   blinkLed.blink(1000);
   dumpState();
   executeCommand(parseCommand());
-  checkUpdateState();
+  checkUpdateState(false);
   checkRestoreState();
 }
