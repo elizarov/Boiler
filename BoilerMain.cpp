@@ -117,8 +117,10 @@ inline void dumpState() {
 
 //------- EXECUTE COMMAND -------
 
-#define CMD_TIMEOUT 300 
-#define CMD_SETTLE 1000 
+void checkUpdateState();
+
+const long CMD_TIMEOUT = 300; // how long to push button 
+const long CMD_SETTLE = 1000; // state updates every 0.5s, so after 1s it definitely settles
 
 void executeCommand(char cmd) {
   byte pin = 0;
@@ -144,6 +146,8 @@ void executeCommand(char cmd) {
     pinMode(pin, INPUT);
     delay(CMD_SETTLE); // let it settle onto new state
   }
+  // forced update of configured state
+  checkUpdateState(); // force update of configured stat
   makeDump(dumpType);
 }
 
@@ -164,7 +168,7 @@ void restoreState() {
   }
 }
 
-void checkState() {
+void checkUpdateState() {
   State state = getState();
   if (state != prevState) {
     prevState = state;
@@ -174,6 +178,9 @@ void checkState() {
     else if (config.state.read() == STATE_OFF)
       config.state = STATE_DP; // assume double power by default when in "keep"
   }
+}
+
+void checkRestoreState() {
   if (restoreStateTimeout.check()) {
       if (getTemperature() < RESTORE_TEMP_LIMIT)
         restoreState();
@@ -194,5 +201,6 @@ void loop() {
   blinkLed.blink(1000);
   dumpState();
   executeCommand(parseCommand());
-  checkState();
+  checkUpdateState();
+  checkRestoreState();
 }

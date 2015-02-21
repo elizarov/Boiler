@@ -37,9 +37,9 @@ voltage_t vMin;
 
 // each measurement takes 13 clock cycles (125kHz) ~= 9.6 KHz conversion speed.
 // we have 10 values to measure in a look, each at ~ 960Hz
-// we'll update atate at ~ second intervals
+// we'll update atate at ~ 500 ms intervals
 
-const uint16_t AVG_CNT = 960;
+const uint16_t AVG_CNT = 480;
 
 // we gather ~57k measurements per minute. 
 // We'll use 16 bit min queue for minVoltage (for slightly > 1 min)
