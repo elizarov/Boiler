@@ -20,9 +20,9 @@ const int SP_THRESHOLD = 750;
 
 // each measurement takes 13 clock cycles (125kHz) ~= 9.6 KHz conversion speed.
 // we have 10 values to measure in a look, each at ~ 960Hz
-// we'll update atate 3 times per second
+// we'll update atate 2 times per second
 
-const uint16_t AVG_CNT = 320;
+const uint16_t AVG_CNT = 480;
 
 // we gather ~57k measurements per minute. 
 // We'll use 16 bit min queue for minVoltage (for slightly > 1 min)

@@ -125,7 +125,7 @@ inline void dumpState() {
 void checkUpdateState(bool force);
 
 const long CMD_TIMEOUT = 300; // how long to push button 
-const long CMD_SETTLE = 1200; // state updates ~3 times perscond, plus one there one change is skipped
+const long CMD_SETTLE = 1600; // state updates ~2 times perscond, plus one change is skipped
 
 void executeHardwareCommand(char cmd) {
   byte pin;
