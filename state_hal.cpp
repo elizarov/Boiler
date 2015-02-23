@@ -16,7 +16,6 @@ const uint8_t VOLTAGE_LAST = 9;
 const uint8_t MEASURE_COUNT = 10;
 
 const int KEEP_THRESHOLD = 30;
-const int SP_THRESHOLD = 750;
 
 // each measurement takes 13 clock cycles (125kHz) ~= 9.6 KHz conversion speed.
 // we have 10 values to measure in a look, each at ~ 960Hz
@@ -81,7 +80,7 @@ inline State computeState() {
     return STATE_OFF;
   else if (h0 < KEEP_THRESHOLD && h1 < KEEP_THRESHOLD)
     return STATE_KEEP;  
-  else if (h0 > SP_THRESHOLD || h0 < KEEP_THRESHOLD)  
+  else if (h0 == 0 || h1 == 0)  
     return STATE_SP;
   else 
     return STATE_DP;
