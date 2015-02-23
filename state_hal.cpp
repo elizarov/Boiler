@@ -15,7 +15,8 @@ const uint8_t VOLTAGE0 = 3;
 const uint8_t VOLTAGE_LAST = 9;
 const uint8_t MEASURE_COUNT = 10;
 
-const int KEEP_THRESHOLD = 30;
+const int KEEP_THRESHOLD = 30; // typical values of h0,h1 in keep mode is7-8
+const int SP_THRESHOLD = 1000; // typical value of h0 in SP mode is 0 or 1022
 
 // each measurement takes 13 clock cycles (125kHz) ~= 9.6 KHz conversion speed.
 // we have 10 values to measure in a look, each at ~ 960Hz
@@ -79,8 +80,9 @@ inline State computeState() {
   if (h0 == 0 && h1 == 0)
     return STATE_OFF;
   else if (h0 < KEEP_THRESHOLD && h1 < KEEP_THRESHOLD)
-    return STATE_KEEP;  
-  else if (h0 == 0 || h1 == 0)  
+    return STATE_KEEP;
+  // In SP mode h0 is either very high or zero  
+  else if (h0 > SP_THRESHOLD || h0 < KEEP_THRESHOLD)  
     return STATE_SP;
   else 
     return STATE_DP;
