@@ -7,6 +7,7 @@
 #include "state_hal.h"
 #include "Config.h"
 
+State configState = config.state.read();
 BlinkLed blinkLed(13);
 
 //------- ALL TIME DEFS ------
@@ -79,7 +80,7 @@ void makeDump(char dumpType) {
   prepareDecimal(getTemperature(), tPos, tSize);
   
   // prepare other values
-  prepareDecimal(config.state.read(), cPos, cSize);
+  prepareDecimal(configState, cPos, cSize);
   prepareDecimal(getMinVoltage(), vPos, vSize);
   prepareDecimal(h0, aPos, aSize);
   prepareDecimal(h1, bPos, bSize);
@@ -148,6 +149,10 @@ void executeHardwareCommand(char cmd) {
 }
 
 bool changeState(State to) {
+  if (to != configState) {
+    config.state = to;
+    configState = to;
+  }  
   State cur = getState();
   if (cur == to)
     return false;
@@ -174,17 +179,14 @@ void executeCommand(char cmd) {
     dumpType = DUMP_POWER;
     break;
   case CMD_OFF:
-    config.state = STATE_OFF;
     changeState(STATE_OFF);
     dumpType = DUMP_OFF;
     break;    
   case CMD_SP:
-    config.state = STATE_SP;
     changeState(STATE_SP);
     dumpType = DUMP_SP;
     break;    
   case CMD_DP:
-    config.state = STATE_DP;
     changeState(STATE_DP);
     dumpType = DUMP_DP;
     break;    
@@ -200,9 +202,8 @@ Timeout restoreStateTimeout(RESTORE_STATE_INTERVAL);
 State prevState = STATE_OFF;
 
 void restoreState() {
-  State cfg = config.state.read();
-  if (cfg == STATE_SP || cfg == STATE_DP)
-    if (changeState(cfg))
+  if (configState == STATE_SP || configState == STATE_DP)
+    if (changeState(configState))
       makeDump(DUMP_RESTORED);
 }
 
@@ -214,13 +215,14 @@ void checkUpdateState(bool force) {
   restoreStateTimeout.disable();
   // special logic to figure out "keep" state (don't know if DP or SP)
   if (state == STATE_KEEP) {
-    if (config.state.read() != STATE_OFF)
+    if (configState != STATE_OFF)
       return; // some other state is configured -- don't touch it
     state = STATE_DP; // assume double power by default when in "keep"
   }  
-  if (state != config.state.read()) {
+  if (state != configState) {
     // new state if different from configured -- update configuration
     config.state = state;
+    configState = state;
     if (!force)
       makeDump(DUMP_CHANGED);
   }

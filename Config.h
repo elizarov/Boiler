@@ -18,6 +18,7 @@ public:
   };
   
   Byte<byte>        _reserved0;
+  Byte<byte>        _reserved1;  // broken
   Byte<State>       state;       // see state_hal.h enum State
 };
 
